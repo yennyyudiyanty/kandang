@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>JJ-Rolu Farm</title>
+  <meta name="description" content="Aplikasi Manajemen Kandang JJ-Rolu Farm">
+  <meta name="theme-color" content="#2D6A4F">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div id="loginPage" class="login-page" style="display:none">
+  <div class="login-logo">
+    <img src="logo.png" alt="JJ-Rolu Farm">
+    <h1>JJ-Rolu Farm</h1>
+    <p>Sistem Manajemen Kandang</p>
+  </div>
+  <div class="login-form">
+    <div id="loginError" class="login-error"></div>
+    <div class="form-group">
+      <label for="username">Username</label>
+      <input type="text" id="username" placeholder="Masukkan username" autocomplete="username" autocorrect="off" autocapitalize="off">
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Masukkan password" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()" id="loginBtn">Masuk</button>
+  </div>
+</div>
+
+<!-- HOME PAGE -->
+<div id="homePage" style="display:none">
+
+  <!-- Notification Panel -->
+  <div id="notifPanel" class="notif-panel">
+    <div class="notif-header">
+      <span class="notif-title">Notifikasi</span>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button onclick="markAllRead()" class="btn btn-sm btn-ghost">Baca semua</button>
+        <button onclick="closeNotifPanel()" class="modal-close">×</button>
+      </div>
+    </div>
+    <div id="notifList"></div>
+  </div>
+
+  <!-- Header -->
+  <div class="app-header">
+    <div class="header-left">
+      <img src="logo.png" alt="" style="width:32px;height:32px;object-fit:contain">
+      <div>
+        <div class="header-title">JJ-Rolu Farm</div>
+        <div class="header-subtitle" id="headerUser"></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="notif-btn" onclick="openNotifPanel()">
+        🔔
+        <span class="notif-badge" id="notifBadge"></span>
+      </button>
+      <button onclick="doLogout()" class="btn btn-sm btn-secondary">Keluar</button>
+    </div>
+  </div>
+
+  <div class="main-content">
+
+    <!-- Home Logo -->
+    <div class="home-logo">
+      <img src="logo.png" alt="JJ-Rolu Farm" style="width:60px;height:60px">
+      <h2>JJ-Rolu Farm</h2>
+    </div>
+
+    <!-- Date -->
+    <div style="text-align:center;font-size:14px;color:#6C757D;margin-bottom:20px" id="todayDate"></div>
+
+    <!-- Todo Section -->
+    <div class="todo-section">
+      <div class="section-header">
+        <span class="section-title">To Do Hari Ini</span>
+        <span id="todoAddBtn"></span>
+      </div>
+      <div id="todoList"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Farm Selection -->
+    <div>
+      <div class="section-header">
+        <span class="section-title">Pilih Farm</span>
+        <span id="userMgmtBtn"></span>
+      </div>
+      <div class="farm-grid">
+        <div class="farm-card" onclick="goToFarm('farm1')">
+          <div class="farm-icon">🐔</div>
+          <div class="farm-name">Farm 1</div>
+          <div class="farm-location">Kaliajeng</div>
+          <span class="farm-status" id="farm1Status">Memuat...</span>
+        </div>
+        <div class="farm-card" onclick="goToFarm('farm2')">
+          <div class="farm-icon">🐔</div>
+          <div class="farm-name">Farm 2</div>
+          <div class="farm-location">Kebun Agung</div>
+          <span class="farm-status" id="farm2Status">Memuat...</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ADD TODO MODAL -->
+<div class="modal-overlay" id="todoModal">
+  <div class="modal">
+    <div class="modal-title">
+      Tambah Tugas
+      <button class="modal-close" onclick="closeTodoModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Nama Tugas</label>
+      <input type="text" id="todoTitle" placeholder="Masukkan nama tugas">
+    </div>
+    <div class="form-group">
+      <label>Untuk Farm</label>
+      <select id="todoFarm">
+        <option value="all">Semua Farm</option>
+        <option value="farm1">Farm 1 - Kaliajeng</option>
+        <option value="farm2">Farm 2 - Kebun Agung</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Catatan (opsional)</label>
+      <textarea id="todoNotes" rows="3" placeholder="Tambahkan catatan..."></textarea>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveTodo()">Simpan Tugas</button>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script>
+const hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const bulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+function init() {
+  if (Auth.isLoggedIn()) {
+    showHome();
+  } else {
+    showLogin();
+  }
+}
+
+function showLogin() {
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('homePage').style.display = 'none';
+}
+
+async function showHome() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('homePage').style.display = 'block';
+
+  const user = Auth.getUser();
+  document.getElementById('headerUser').textContent = `${user.name} (${user.role})`;
+
+  const now = new Date();
+  document.getElementById('todayDate').textContent = `${hari[now.getDay()]}, ${now.getDate()} ${bulan[now.getMonth()]} ${now.getFullYear()}`;
+
+  if (Auth.isAdmin()) {
+    document.getElementById('todoAddBtn').innerHTML = `<button class="btn btn-sm btn-ghost" onclick="openTodoModal()">+ Tambah</button>`;
+  }
+  if (Auth.isOwner()) {
+    document.getElementById('userMgmtBtn').innerHTML = `<button class="btn btn-sm btn-secondary" onclick="window.location.href='pages/users.html'">Kelola User</button>`;
+  }
+
+  loadTodos();
+  loadFarmStatus();
+  loadNotifications();
+  keepAlive();
+  setInterval(loadNotifications, 60000);
+}
+
+async function doLogin() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+
+  errEl.style.display = 'none';
+  if (!username || !password) { errEl.textContent = 'Username dan password wajib diisi'; errEl.style.display = 'block'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Memuat...';
+
+  const res = await API.post('/api/auth/login', { username, password });
+  btn.disabled = false;
+  btn.textContent = 'Masuk';
+
+  if (res && res.token) {
+    Auth.save(res.token, res.user);
+    showHome();
+  } else {
+    errEl.textContent = res?.error || 'Login gagal. Periksa username dan password.';
+    errEl.style.display = 'block';
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') doLogin();
+});
+
+function doLogout() {
+  if (confirm('Yakin ingin keluar?')) Auth.logout();
+}
+
+async function loadTodos() {
+  const todos = await API.get('/api/todo');
+  const el = document.getElementById('todoList');
+  if (!todos || todos.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">Tidak ada tugas hari ini</div></div>';
+    return;
+  }
+  el.innerHTML = todos.map(t => `
+    <div class="todo-item" id="todo-${t.id}">
+      ${Auth.isAdmin() ? `<div class="todo-check" onclick="doneTodo(${t.id})"></div>` : '<div style="width:22px;flex-shrink:0"></div>'}
+      <div class="todo-content">
+        <div class="todo-title">${t.title}</div>
+        <div class="todo-meta">
+          ${t.notes ? t.notes + ' &bull; ' : ''}
+          Oleh: ${t.created_by_name}
+          <span class="farm-tag ${t.farm_target}">${t.farm_target === 'farm1' ? 'Farm 1' : t.farm_target === 'farm2' ? 'Farm 2' : 'Semua'}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function doneTodo(id) {
+  if (!confirm('Tandai tugas ini selesai?')) return;
+  const res = await API.put(`/api/todo/${id}/done`);
+  if (res?.success) { showToast('Tugas selesai', 'success'); loadTodos(); }
+}
+
+function openTodoModal() { document.getElementById('todoModal').classList.add('open'); document.getElementById('todoTitle').focus(); }
+function closeTodoModal() { document.getElementById('todoModal').classList.remove('open'); }
+
+async function saveTodo() {
+  const title = document.getElementById('todoTitle').value.trim();
+  const farm_target = document.getElementById('todoFarm').value;
+  const notes = document.getElementById('todoNotes').value.trim();
+  if (!title) { showToast('Nama tugas wajib diisi', 'error'); return; }
+  const res = await API.post('/api/todo', { title, farm_target, notes });
+  if (res?.success) { showToast('Tugas berhasil ditambahkan', 'success'); closeTodoModal(); loadTodos(); document.getElementById('todoTitle').value = ''; document.getElementById('todoNotes').value = ''; }
+  else showToast(res?.error || 'Gagal menyimpan tugas', 'error');
+}
+
+async function loadFarmStatus() {
+  const farms = await API.get('/api/farms');
+  if (!farms) return;
+
+  for (const farm of farms) {
+    const periods = await API.get(`/api/periods/farm/${farm.id}`);
+    const activePeriod = periods?.find(p => p.status === 'active');
+    const el = document.getElementById(`${farm.code}Status`);
+    if (el) {
+      if (activePeriod) {
+        const ci = new Date(activePeriod.chick_in_date);
+        const today = new Date();
+        const dayNum = Math.floor((today - ci) / (1000*60*60*24)) + 1;
+        el.className = 'farm-status active';
+        el.textContent = `Aktif - Hari ke-${dayNum}`;
+      } else {
+        el.className = 'farm-status no-period';
+        el.textContent = 'Belum ada periode';
+      }
+    }
+  }
+}
+
+async function loadNotifications() {
+  const data = await API.get('/api/notifications/unread-count');
+  const badge = document.getElementById('notifBadge');
+  if (data?.count > 0) { badge.textContent = data.count > 9 ? '9+' : data.count; badge.style.display = 'flex'; }
+  else badge.style.display = 'none';
+}
+
+async function openNotifPanel() {
+  document.getElementById('notifPanel').classList.add('open');
+  const notifs = await API.get('/api/notifications');
+  const el = document.getElementById('notifList');
+  if (!notifs || notifs.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">Belum ada notifikasi</div></div>';
+    return;
+  }
+  el.innerHTML = notifs.map(n => `
+    <div class="notif-item ${n.is_read ? '' : 'unread'}" onclick="readNotif(${n.id}, this)">
+      <div class="notif-item-title">${n.title}</div>
+      <div class="notif-item-msg">${n.message}</div>
+      <div class="notif-item-time">${formatDate(n.created_at)}</div>
+    </div>
+  `).join('');
+  loadNotifications();
+}
+
+async function readNotif(id, el) {
+  await API.put(`/api/notifications/${id}/read`);
+  el.classList.remove('unread');
+  loadNotifications();
+}
+
+async function markAllRead() {
+  await API.put('/api/notifications/read-all');
+  openNotifPanel();
+}
+
+function closeNotifPanel() { document.getElementById('notifPanel').classList.remove('open'); }
+
+function goToFarm(farmCode) {
+  localStorage.setItem('jjrolu_farm', farmCode);
+  window.location.href = `pages/farm.html?farm=${farmCode}`;
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/kandang/sw.js').catch(() => {}));
+}
+
+init();
+</script>
+</body>
+</html>

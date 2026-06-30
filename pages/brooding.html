@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Persiapan Brooding - JJ-Rolu Farm</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="app-header">
+  <div class="header-left">
+    <span class="header-back" onclick="goBack()">&#8592;</span>
+    <div>
+      <div class="header-title">Persiapan Brooding</div>
+      <div class="header-subtitle" id="headerSub"></div>
+    </div>
+  </div>
+</div>
+
+<div class="main-content">
+
+  <!-- Period Info -->
+  <div class="card" id="periodCard"></div>
+
+  <!-- Sekam Stok Awal -->
+  <div class="card" id="sekamCard" style="display:none">
+    <div class="card-title">Stok Sekam Awal</div>
+    <div style="display:flex;gap:10px;align-items:flex-end">
+      <div style="flex:1">
+        <label>Jumlah Sekam (zak)</label>
+        <input type="number" id="sekamInput" placeholder="0" min="0" step="0.5">
+      </div>
+      <button class="btn btn-primary" onclick="saveSekam()" style="margin-bottom:0;padding:12px 16px">Simpan</button>
+    </div>
+    <div style="font-size:12px;color:var(--gray-600);margin-top:8px" id="sekamCurrent"></div>
+  </div>
+
+  <!-- Checklist Barang -->
+  <div>
+    <div class="section-header">
+      <span class="section-title">Checklist Barang Brooding</span>
+      <span id="addItemBtn"></span>
+    </div>
+    <div style="font-size:13px;color:var(--gray-600);margin-bottom:12px">Isi jumlah dan tanggal kirim untuk menampilkan checklist</div>
+    <div id="broodingList"></div>
+  </div>
+
+</div>
+
+<!-- Modal tambah barang -->
+<div class="modal-overlay" id="addItemModal">
+  <div class="modal">
+    <div class="modal-title">Tambah Barang
+      <button class="modal-close" onclick="closeAddModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Nama Barang</label>
+      <input type="text" id="newItemName" placeholder="Nama barang">
+    </div>
+    <div class="form-group">
+      <label>Satuan</label>
+      <input type="text" id="newItemUnit" placeholder="zak / botol / lembar">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveNewItem()">Tambah</button>
+  </div>
+</div>
+
+<!-- Modal edit barang -->
+<div class="modal-overlay" id="editItemModal">
+  <div class="modal">
+    <div class="modal-title" id="editModalTitle">Edit Barang
+      <button class="modal-close" onclick="closeEditModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Jumlah</label>
+      <input type="number" id="editQty" placeholder="0" min="0" step="0.5">
+    </div>
+    <div class="form-group">
+      <label>Tanggal Dikirim</label>
+      <input type="date" id="editDate">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveEdit()">Simpan</button>
+  </div>
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const farmCode = params.get('farm') || localStorage.getItem('jjrolu_farm');
+const periodId = localStorage.getItem('jjrolu_period');
+let farmData = null;
+let periodData = null;
+let broodingItems = [];
+let selectedItemId = null;
+
+async function init() {
+  if (!Auth.isLoggedIn()) { window.location.href = '../index.html'; return; }
+  const farms = await API.get('/api/farms');
+  farmData = farms?.find(f => f.code === farmCode);
+  if (!farmData || !periodId) { window.location.href = '../index.html'; return; }
+
+  document.getElementById('headerSub').textContent = `${farmData.name} - ${farmData.location}`;
+
+  periodData = await API.get(`/api/periods/${periodId}`);
+  if (periodData) {
+    const ci = new Date(periodData.chick_in_date);
+    const today = new Date();
+    const dayNum = Math.floor((today - ci) / (1000*60*60*24)) + 1;
+    document.getElementById('periodCard').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:12px;color:var(--gray-600)">Periode ${periodData.period_number}</div>
+          <div style="font-size:16px;font-weight:700">Chick In: ${formatDate(periodData.chick_in_date)}</div>
+          ${periodData.doc_count ? `<div style="font-size:12px;color:var(--gray-600);margin-top:2px">${parseInt(periodData.doc_count).toLocaleString('id-ID')} ekor &bull; ${formatRupiah(periodData.doc_price)}/ekor</div>` : ''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:28px;font-weight:800;color:var(--green)">Hari ${dayNum}</div>
+          <div class="period-badge ${periodData.status === 'closed' ? 'period-closed' : ''}">${periodData.status === 'active' ? 'Aktif' : 'Closed'}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  if (Auth.isAdmin()) {
+    document.getElementById('sekamCard').style.display = 'block';
+    document.getElementById('addItemBtn').innerHTML = `<button class="btn btn-sm btn-ghost" onclick="openAddModal()">+ Barang</button>`;
+  }
+
+  await loadSekam();
+  await loadBroodingItems();
+}
+
+async function loadSekam() {
+  const stock = await API.get(`/api/logistik/sekam-stock/${periodId}`);
+  if (stock) {
+    document.getElementById('sekamInput').value = stock.initial_stock || '';
+    document.getElementById('sekamCurrent').textContent = `Stok saat ini: ${stock.remaining || 0} zak tersisa`;
+  }
+}
+
+async function saveSekam() {
+  const qty = parseFloat(document.getElementById('sekamInput').value);
+  if (!qty || qty < 0) { showToast('Jumlah sekam tidak valid', 'error'); return; }
+  const res = await API.put(`/api/logistik/sekam-stock/${periodId}`, { initial_stock: qty });
+  if (res?.success) { showToast('Stok sekam disimpan', 'success'); loadSekam(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function loadBroodingItems() {
+  broodingItems = await API.get(`/api/periods/${periodId}/brooding-items`) || [];
+  const el = document.getElementById('broodingList');
+  el.innerHTML = broodingItems.map(item => {
+    const hasData = item.quantity && item.sent_date;
+    return `
+      <div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:${hasData ? 10 : 0}px">
+          <div style="font-size:15px;font-weight:500">${item.name} ${item.unit ? `<span style="font-size:12px;color:var(--gray-600)">(${item.unit})</span>` : ''}</div>
+          ${Auth.isAdmin() ? `<button class="btn btn-sm btn-secondary" onclick="openEditModal(${item.id}, '${item.name}')">Edit</button>` : ''}
+        </div>
+        ${item.quantity ? `<div style="font-size:13px;color:var(--gray-600)">Jumlah: <strong>${item.quantity}</strong> &bull; Dikirim: <strong>${formatDate(item.sent_date)}</strong></div>` : '<div style="font-size:12px;color:#ADB5BD;font-style:italic">Belum diisi</div>'}
+        ${hasData ? `
+          <div style="margin-top:10px">
+            <div class="checklist-item" style="margin-bottom:0;cursor:${Auth.isAdmin() ? 'pointer' : 'default'}" onclick="${Auth.isAdmin() ? `toggleCheck(${item.id}, ${item.is_checked})` : ''}">
+              <div class="check-box ${item.is_checked ? 'checked' : ''}"></div>
+              <span class="checklist-label ${item.is_checked ? 'checked' : ''}">${item.is_checked ? 'Sudah diterima di kandang' : 'Belum diterima'}</span>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function openEditModal(id, name) {
+  selectedItemId = id;
+  document.getElementById('editModalTitle').childNodes[0].textContent = `Edit: ${name} `;
+  const item = broodingItems.find(i => i.id === id);
+  document.getElementById('editQty').value = item?.quantity || '';
+  document.getElementById('editDate').value = item?.sent_date || new Date().toISOString().split('T')[0];
+  document.getElementById('editItemModal').classList.add('open');
+}
+function closeEditModal() { document.getElementById('editItemModal').classList.remove('open'); }
+
+async function saveEdit() {
+  const quantity = parseFloat(document.getElementById('editQty').value);
+  const sent_date = document.getElementById('editDate').value;
+  if (!quantity || !sent_date) { showToast('Jumlah dan tanggal wajib diisi', 'error'); return; }
+  const res = await API.put(`/api/periods/${periodId}/brooding-items/${selectedItemId}`, { quantity, sent_date, is_checked: false });
+  if (res?.success) { showToast('Data disimpan', 'success'); closeEditModal(); loadBroodingItems(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function toggleCheck(id, currentState) {
+  const item = broodingItems.find(i => i.id === id);
+  const res = await API.put(`/api/periods/${periodId}/brooding-items/${id}`, {
+    quantity: item.quantity, sent_date: item.sent_date, is_checked: !currentState
+  });
+  if (res?.success) loadBroodingItems();
+}
+
+function openAddModal() { document.getElementById('addItemModal').classList.add('open'); }
+function closeAddModal() { document.getElementById('addItemModal').classList.remove('open'); }
+
+async function saveNewItem() {
+  const name = document.getElementById('newItemName').value.trim();
+  const unit = document.getElementById('newItemUnit').value.trim();
+  if (!name) { showToast('Nama barang wajib diisi', 'error'); return; }
+  const res = await API.post(`/api/periods/${periodId}/brooding-items`, { name, unit });
+  if (res?.success) { showToast('Barang ditambahkan', 'success'); closeAddModal(); loadBroodingItems(); document.getElementById('newItemName').value = ''; document.getElementById('newItemUnit').value = ''; }
+  else showToast('Gagal menambahkan', 'error');
+}
+
+function goBack() { window.location.href = `farm.html?farm=${farmCode}`; }
+init();
+</script>
+</body>
+</html>

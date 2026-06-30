@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Jadwal OVK - JJ-Rolu Farm</title>
+  <meta name="theme-color" content="#2D6A4F">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="app-header">
+  <div class="header-left">
+    <span class="header-back" onclick="goBack()">&#8592;</span>
+    <div>
+      <div class="header-title">Jadwal OVK dan Herbal</div>
+      <div class="header-subtitle" id="headerSub"></div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('jadwal',this)">Jadwal OVK</button>
+  <button class="tab-btn" onclick="switchTab('custom',this)">To-Do Tambahan</button>
+  <button class="tab-btn" onclick="switchTab('seser',this)">Seser Sekam</button>
+</div>
+
+<div class="main-content" style="padding-top:8px">
+
+  <!-- TAB JADWAL OVK -->
+  <div id="tab-jadwal" class="tab-content active">
+    <div class="stats-row" id="ovkStats"></div>
+    <div id="todayAlert"></div>
+    <div id="ovkList"></div>
+  </div>
+
+  <!-- TAB CUSTOM TO-DO -->
+  <div id="tab-custom" class="tab-content">
+    <div id="customList"></div>
+    <div id="emptyCustom" class="empty-state" style="display:none">
+      <div class="empty-icon">📅</div>
+      <div class="empty-text">Belum ada jadwal tambahan</div>
+    </div>
+  </div>
+
+  <!-- TAB SESER SEKAM -->
+  <div id="tab-seser" class="tab-content">
+    <div class="card" id="sekamStockCard"></div>
+    <div class="section-header" style="margin-top:12px">
+      <span class="section-title">Riwayat Seser</span>
+    </div>
+    <div id="seserList"></div>
+  </div>
+
+</div>
+
+<!-- FAB tambah jadwal custom (owner/admin only) -->
+<button class="fab" id="fabBtn" onclick="openCustomModal()" style="display:none" aria-label="Tambah jadwal">+</button>
+
+<!-- Modal centang OVK done -->
+<div class="modal-overlay" id="ovkDoneModal">
+  <div class="modal">
+    <div class="modal-title">
+      Tandai Selesai
+      <button class="modal-close" onclick="closeOvkModal()">×</button>
+    </div>
+    <p style="font-size:15px;margin-bottom:16px" id="ovkDoneLabel"></p>
+    <div class="form-group">
+      <label>Catatan (opsional)</label>
+      <textarea id="ovkNotes" rows="2" placeholder="Tambahkan catatan..."></textarea>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="confirmOvkDone()">Tandai Selesai</button>
+  </div>
+</div>
+
+<!-- Modal tambah jadwal custom -->
+<div class="modal-overlay" id="customModal">
+  <div class="modal">
+    <div class="modal-title">
+      Tambah Jadwal
+      <button class="modal-close" onclick="closeCustomModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Nama Kegiatan</label>
+      <input type="text" id="customTitle" placeholder="Contoh: Pemberian vitamin tambahan">
+    </div>
+    <div class="form-group">
+      <label>Tanggal</label>
+      <input type="date" id="customDate">
+    </div>
+    <div class="form-group">
+      <label>Reminder</label>
+      <select id="customReminder">
+        <option value="H-1">H-1 (sehari sebelum)</option>
+        <option value="H-3">H-3 (3 hari sebelum)</option>
+        <option value="hari-H">Hari H</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Catatan (opsional)</label>
+      <textarea id="customNotes" rows="2" placeholder="Tambahkan catatan..."></textarea>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveCustom()">Simpan Jadwal</button>
+  </div>
+</div>
+
+<!-- Modal input seser sekam -->
+<div class="modal-overlay" id="seserModal">
+  <div class="modal">
+    <div class="modal-title">
+      Input Seser Sekam
+      <button class="modal-close" onclick="closeSeserModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Lantai</label>
+      <select id="seserFloor">
+        <option value="atas">Lantai Atas</option>
+        <option value="bawah">Lantai Bawah</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Jumlah Sekam Terpakai (zak)</label>
+      <input type="number" id="seserQty" placeholder="0" min="0" step="0.5">
+    </div>
+    <div class="form-group">
+      <label>Tanggal</label>
+      <input type="date" id="seserDate">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveSeser()">Simpan</button>
+  </div>
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const farmCode = params.get('farm') || localStorage.getItem('jjrolu_farm');
+const periodId = localStorage.getItem('jjrolu_period');
+let farmData = null;
+let ovkData = [];
+let selectedOvkId = null;
+let sekamStock = null;
+
+async function init() {
+  if (!Auth.isLoggedIn()) { window.location.href = '../index.html'; return; }
+
+  const farms = await API.get('/api/farms');
+  farmData = farms?.find(f => f.code === farmCode);
+  if (!farmData) { window.location.href = '../index.html'; return; }
+
+  document.getElementById('headerSub').textContent = `${farmData.name} - ${farmData.location}`;
+
+  if (Auth.isAdmin()) document.getElementById('fabBtn').style.display = 'flex';
+
+  await loadOVK();
+  await loadCustom();
+  await loadSeser();
+}
+
+async function loadOVK() {
+  if (!periodId) return;
+  ovkData = await API.get(`/api/periods/${periodId}/ovk`) || [];
+
+  const today = new Date().toISOString().split('T')[0];
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+  const done = ovkData.filter(o => o.is_done).length;
+  const total = ovkData.length;
+
+  document.getElementById('ovkStats').innerHTML = `
+    <div class="stat-card"><div class="stat-value">${done}</div><div class="stat-label">Selesai</div></div>
+    <div class="stat-card"><div class="stat-value" style="color:#E65100">${total - done}</div><div class="stat-label">Tersisa</div></div>
+  `;
+
+  const todayItems = ovkData.filter(o => o.scheduled_date === today && !o.is_done);
+  if (todayItems.length > 0) {
+    document.getElementById('todayAlert').innerHTML = `
+      <div class="warning-box" style="background:var(--green-pale);border-color:var(--green);color:var(--green)">
+        Jadwal hari ini: ${todayItems.map(i => i.activity).join(', ')}
+      </div>
+    `;
+  }
+
+  document.getElementById('ovkList').innerHTML = ovkData.map(o => {
+    const isToday = o.scheduled_date === today;
+    const isTomorrow = o.scheduled_date === tomorrowStr;
+    let cls = '', badge = '';
+    if (o.is_done) { cls = 'done'; badge = '<span class="badge badge-done">Selesai</span>'; }
+    else if (isToday) { cls = 'today'; badge = '<span class="badge badge-today">Hari ini</span>'; }
+    else if (isTomorrow) { cls = 'tomorrow'; badge = '<span class="badge" style="background:#FFF3E0;color:#E65100">Besok</span>'; }
+
+    return `
+      <div class="schedule-item ${cls}" ${!o.is_done ? `onclick="openOvkModal(${o.id}, '${o.activity}')"` : ''}>
+        <div class="schedule-day ${o.is_done ? 'done' : ''}">
+          <div class="day-num">${o.day_number}</div>
+          <div style="font-size:9px">hari</div>
+        </div>
+        <div class="schedule-info">
+          <div class="schedule-activity">${o.activity}</div>
+          <div class="schedule-date">${formatDate(o.scheduled_date)}</div>
+        </div>
+        ${badge}
+      </div>
+    `;
+  }).join('');
+}
+
+function openOvkModal(id, activity) {
+  if (!Auth.isAdmin()) return;
+  selectedOvkId = id;
+  document.getElementById('ovkDoneLabel').textContent = `Tandai "${activity}" sebagai selesai?`;
+  document.getElementById('ovkNotes').value = '';
+  document.getElementById('ovkDoneModal').classList.add('open');
+}
+
+function closeOvkModal() { document.getElementById('ovkDoneModal').classList.remove('open'); }
+
+async function confirmOvkDone() {
+  const res = await API.put(`/api/periods/${periodId}/ovk/${selectedOvkId}/done`);
+  if (res?.success) { showToast('Jadwal ditandai selesai', 'success'); closeOvkModal(); loadOVK(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function loadCustom() {
+  const data = await API.get(`/api/custom-schedule/period/${periodId}`) || [];
+  const el = document.getElementById('customList');
+  const empty = document.getElementById('emptyCustom');
+  if (!data.length) { el.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  const today = new Date().toISOString().split('T')[0];
+  el.innerHTML = data.map(c => `
+    <div class="schedule-item ${c.is_done ? 'done' : c.scheduled_date === today ? 'today' : ''}">
+      <div class="schedule-day ${c.is_done ? 'done' : ''}">
+        <i class="ti ti-calendar" style="font-size:16px" aria-hidden="true"></i>
+      </div>
+      <div class="schedule-info">
+        <div class="schedule-activity">${c.title}</div>
+        <div class="schedule-date">${formatDate(c.scheduled_date)} &bull; Reminder: ${c.reminder_type}</div>
+        ${c.notes ? `<div class="schedule-date">${c.notes}</div>` : ''}
+      </div>
+      ${c.is_done ? '<span class="badge badge-done">Selesai</span>' : Auth.isAdmin() ? `<button class="btn btn-sm btn-ghost" onclick="doneCustom(${c.id})">Selesai</button>` : ''}
+    </div>
+  `).join('');
+}
+
+function openCustomModal() {
+  document.getElementById('customDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('customModal').classList.add('open');
+}
+function closeCustomModal() { document.getElementById('customModal').classList.remove('open'); }
+
+async function saveCustom() {
+  const title = document.getElementById('customTitle').value.trim();
+  const scheduled_date = document.getElementById('customDate').value;
+  const reminder_type = document.getElementById('customReminder').value;
+  const notes = document.getElementById('customNotes').value.trim();
+  if (!title || !scheduled_date) { showToast('Nama kegiatan dan tanggal wajib diisi', 'error'); return; }
+  const res = await API.post('/api/custom-schedule', { period_id: periodId, farm_id: farmData.id, title, scheduled_date, reminder_type, notes });
+  if (res?.success) { showToast('Jadwal ditambahkan', 'success'); closeCustomModal(); loadCustom(); document.getElementById('customTitle').value = ''; }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function doneCustom(id) {
+  const res = await API.put(`/api/custom-schedule/${id}/done`);
+  if (res?.success) { showToast('Jadwal selesai', 'success'); loadCustom(); }
+}
+
+async function loadSeser() {
+  sekamStock = await API.get(`/api/logistik/sekam-stock/${periodId}`);
+  const usages = await API.get(`/api/logistik/sekam-usage/${periodId}`) || [];
+
+  document.getElementById('sekamStockCard').innerHTML = `
+    <div class="stats-row" style="margin-bottom:0">
+      <div class="stat-card"><div class="stat-value">${sekamStock?.initial_stock || 0}</div><div class="stat-label">Stok Awal (zak)</div></div>
+      <div class="stat-card"><div class="stat-value" style="color:#E65100">${sekamStock?.used_total || 0}</div><div class="stat-label">Terpakai (zak)</div></div>
+    </div>
+    <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:14px;color:var(--gray-600)">Sisa stok</span>
+      <span style="font-size:20px;font-weight:700;color:var(--green)">${sekamStock?.remaining || 0} zak</span>
+    </div>
+    ${Auth.isAdmin() ? '<button class="btn btn-primary btn-full" style="margin-top:12px" onclick="openSeserModal()">Input Seser Sekam</button>' : ''}
+  `;
+
+  const seserEl = document.getElementById('seserList');
+  if (!usages.length) { seserEl.innerHTML = '<div class="empty-state"><div class="empty-icon">🌾</div><div class="empty-text">Belum ada riwayat seser</div></div>'; return; }
+  seserEl.innerHTML = usages.map(u => `
+    <div class="card" style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:14px;font-weight:500">Lantai ${u.floor === 'atas' ? 'Atas' : 'Bawah'}</div>
+        <div style="font-size:12px;color:var(--gray-600)">${formatDate(u.used_date)}</div>
+      </div>
+      <div style="font-size:18px;font-weight:700;color:var(--green)">${u.quantity} zak</div>
+    </div>
+  `).join('');
+}
+
+function openSeserModal() {
+  document.getElementById('seserDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('seserModal').classList.add('open');
+}
+function closeSeserModal() { document.getElementById('seserModal').classList.remove('open'); }
+
+async function saveSeser() {
+  const floor = document.getElementById('seserFloor').value;
+  const quantity = parseFloat(document.getElementById('seserQty').value);
+  const used_date = document.getElementById('seserDate').value;
+  if (!quantity || quantity <= 0) { showToast('Jumlah sekam wajib diisi', 'error'); return; }
+  if (quantity > (sekamStock?.remaining || 0)) { showToast(`Jumlah melebihi sisa stok (${sekamStock?.remaining} zak)`, 'error'); return; }
+  const res = await API.post('/api/logistik/sekam-usage', { period_id: periodId, floor, quantity, used_date });
+  if (res?.success) { showToast('Seser sekam disimpan', 'success'); closeSeserModal(); loadSeser(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+  document.getElementById('fabBtn').style.display = (name === 'custom' && Auth.isAdmin()) ? 'flex' : 'none';
+}
+
+function goBack() { window.location.href = `farm.html?farm=${farmCode}`; }
+init();
+</script>
+</body>
+</html>

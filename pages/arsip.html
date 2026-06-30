@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Arsip dan Biaya - JJ-Rolu Farm</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="app-header">
+  <div class="header-left">
+    <span class="header-back" onclick="goBack()">&#8592;</span>
+    <div>
+      <div class="header-title">Arsip dan Perhitungan Biaya</div>
+      <div class="header-subtitle" id="headerSub"></div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('fcr',this)">FCR</button>
+  <button class="tab-btn" onclick="switchTab('biaya',this)">Biaya Operasional</button>
+  <button class="tab-btn" onclick="switchTab('recording',this)">Recording</button>
+  <button class="tab-btn" onclick="switchTab('arsip',this)">Arsip Periode</button>
+</div>
+
+<div class="main-content" style="padding-top:8px">
+
+  <!-- TAB FCR -->
+  <div id="tab-fcr" class="tab-content active">
+    <div class="card" id="fcrCard"></div>
+    <div id="fcrInputSection" style="display:none">
+      <div class="card">
+        <div class="card-title">Input FCR</div>
+        <div class="form-group">
+          <label>Total Pakan Terpakai (zak)</label>
+          <input type="number" id="pakanInput" placeholder="0" min="0" step="0.5">
+          <div style="font-size:12px;color:var(--gray-600);margin-top:4px">Akumulasi selama periode</div>
+        </div>
+        <div class="form-group">
+          <label>Tonase Ayam Panen (kg)</label>
+          <input type="number" id="tonaseInput" placeholder="0" min="0" step="0.1">
+          <div style="font-size:12px;color:var(--gray-600);margin-top:4px">Diisi saat closing kandang</div>
+        </div>
+        <div class="card" style="background:var(--green-pale);border-color:var(--green);margin-bottom:16px">
+          <div style="font-size:12px;color:var(--green)">Rumus FCR</div>
+          <div style="font-size:14px;font-weight:600;color:var(--green);margin-top:4px">(Pakan × 50) ÷ Tonase = FCR</div>
+          <div id="fcrPreview" style="font-size:24px;font-weight:800;color:var(--green);margin-top:8px">-</div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="saveFCR()">Simpan FCR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB BIAYA OPERASIONAL -->
+  <div id="tab-biaya" class="tab-content">
+    <div id="biayaAccess" style="display:none">
+      <div class="stats-row" id="biayaStats"></div>
+      <div class="section-header">
+        <span class="section-title">Rincian Biaya</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-ghost" onclick="openBiayaModal()">+ Manual</button>
+          <button class="btn btn-sm btn-secondary" onclick="exportBiaya()">Export</button>
+        </div>
+      </div>
+      <div id="biayaList"></div>
+    </div>
+    <div id="biayaNoAccess" style="display:none" class="empty-state">
+      <div class="empty-icon">🔒</div>
+      <div class="empty-text">Akses biaya operasional hanya untuk Owner</div>
+    </div>
+  </div>
+
+  <!-- TAB RECORDING -->
+  <div id="tab-recording" class="tab-content">
+    <div id="recordingSection">
+      <div class="section-header">
+        <span class="section-title">Foto Recording Akhir</span>
+        <span id="uploadBtn"></span>
+      </div>
+      <div id="recordingList"></div>
+    </div>
+  </div>
+
+  <!-- TAB ARSIP -->
+  <div id="tab-arsip" class="tab-content">
+    <div id="arsipList"></div>
+  </div>
+
+</div>
+
+<!-- Modal biaya manual -->
+<div class="modal-overlay" id="biayaModal">
+  <div class="modal">
+    <div class="modal-title">Tambah Biaya Manual <button class="modal-close" onclick="closeModal('biayaModal')">×</button></div>
+    <div class="form-group"><label>Tanggal</label><input type="date" id="biayaDate"></div>
+    <div class="form-group"><label>Kategori</label>
+      <select id="biayaKat">
+        <option value="Produksi">Produksi</option>
+        <option value="Energi">Energi</option>
+        <option value="Tenaga Kerja">Tenaga Kerja</option>
+        <option value="Konsumsi ABK">Konsumsi ABK</option>
+        <option value="Iuran & Sosial">Iuran dan Sosial</option>
+        <option value="Operasional Lain">Operasional Lain</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Biaya Untuk</label><input type="text" id="biayaItem" placeholder="Contoh: Pocari, Iuran desa, dll"></div>
+    <div class="form-group"><label>Nominal (Rp)</label><input type="number" id="biayaNominal" placeholder="0" min="0"></div>
+    <button class="btn btn-primary btn-full" onclick="saveBiaya()">Simpan</button>
+  </div>
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const farmCode = params.get('farm') || localStorage.getItem('jjrolu_farm');
+const periodId = localStorage.getItem('jjrolu_period');
+let farmData = null;
+let periodData = null;
+
+async function init() {
+  if (!Auth.isLoggedIn()) { window.location.href = '../index.html'; return; }
+
+  if (!Auth.canAccessBiaya()) {
+    window.location.href = '../index.html';
+    return;
+  }
+
+  const farms = await API.get('/api/farms');
+  farmData = farms?.find(f => f.code === farmCode);
+  if (!farmData) { window.location.href = '../index.html'; return; }
+  document.getElementById('headerSub').textContent = `${farmData.name} - ${farmData.location}`;
+
+  if (periodId) {
+    periodData = await API.get(`/api/periods/${periodId}`);
+  }
+
+  if (Auth.isOwner()) {
+    document.getElementById('fcrInputSection').style.display = 'block';
+    document.getElementById('biayaAccess').style.display = 'block';
+    if (periodData) {
+      document.getElementById('pakanInput').value = periodData.pakan_total_zak || '';
+      document.getElementById('tonaseInput').value = periodData.tonase_panen || '';
+    }
+    document.getElementById('uploadBtn').innerHTML = `<label class="btn btn-sm btn-ghost" style="cursor:pointer"><input type="file" accept="image/*" onchange="uploadRecording(this)" style="display:none">+ Upload Foto</label>`;
+  } else {
+    document.getElementById('biayaAccess').style.display = 'block';
+  }
+
+  loadFCR();
+  loadBiaya();
+  loadRecording();
+  loadArsip();
+
+  document.getElementById('pakanInput')?.addEventListener('input', updateFCRPreview);
+  document.getElementById('tonaseInput')?.addEventListener('input', updateFCRPreview);
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+
+function updateFCRPreview() {
+  const pakan = parseFloat(document.getElementById('pakanInput').value) || 0;
+  const tonase = parseFloat(document.getElementById('tonaseInput').value) || 0;
+  const el = document.getElementById('fcrPreview');
+  if (pakan > 0 && tonase > 0) {
+    el.textContent = `FCR = ${((pakan * 50) / tonase).toFixed(3)}`;
+  } else {
+    el.textContent = '-';
+  }
+}
+
+async function loadFCR() {
+  if (!periodData) { document.getElementById('fcrCard').innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">Belum ada periode aktif</div></div>'; return; }
+  const fcr = periodData.fcr || 0;
+  const pakan = periodData.pakan_total_zak || 0;
+  const tonase = periodData.tonase_panen || 0;
+  document.getElementById('fcrCard').innerHTML = `
+    <div style="text-align:center;padding:10px 0">
+      <div style="font-size:12px;color:var(--gray-600);margin-bottom:4px">FCR Periode ${periodData.period_number}</div>
+      <div style="font-size:48px;font-weight:800;color:${fcr > 0 ? 'var(--green)' : 'var(--gray-400)'}">${fcr > 0 ? fcr.toFixed(3) : '-'}</div>
+      ${fcr > 0 ? `
+        <div style="font-size:12px;color:var(--gray-600);margin-top:8px">
+          Pakan: ${pakan} zak &bull; Tonase: ${tonase} kg
+        </div>
+        <div style="font-size:11px;color:var(--gray-600);margin-top:4px">
+          (${pakan} × 50) ÷ ${tonase} = ${fcr.toFixed(3)}
+        </div>
+      ` : '<div style="font-size:13px;color:var(--gray-600);margin-top:8px">Belum ada data FCR</div>'}
+    </div>
+    ${periodData.status === 'active' && Auth.isOwner() ? `
+      <div class="divider"></div>
+      <button class="btn btn-danger btn-full" onclick="closePeriod()">Tutup Periode dan Hitung FCR Final</button>
+    ` : ''}
+  `;
+}
+
+async function saveFCR() {
+  const pakan = parseFloat(document.getElementById('pakanInput').value) || 0;
+  const tonase = parseFloat(document.getElementById('tonaseInput').value) || 0;
+  const res = await API.put(`/api/periods/${periodId}/pakan`, { pakan_total_zak: pakan });
+  if (res?.success) { showToast('Data pakan disimpan', 'success'); updateFCRPreview(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function closePeriod() {
+  const pakan = parseFloat(document.getElementById('pakanInput').value) || 0;
+  const tonase = parseFloat(document.getElementById('tonaseInput').value) || 0;
+  if (!tonase || tonase <= 0) { showToast('Tonase panen wajib diisi sebelum menutup periode', 'error'); return; }
+  if (!confirm(`Tutup periode ini?\nPakan: ${pakan} zak\nTonase: ${tonase} kg\nFCR: ${((pakan * 50)/tonase).toFixed(3)}\n\nPeriode yang ditutup tidak bisa dibuka kembali kecuali oleh Owner.`)) return;
+  const res = await API.post(`/api/periods/${periodId}/close`, { pakan_total_zak: pakan, tonase_panen: tonase });
+  if (res?.success) { showToast(`Periode ditutup. FCR: ${res.fcr}`, 'success'); setTimeout(() => location.reload(), 1500); }
+  else showToast(res?.error || 'Gagal menutup periode', 'error');
+}
+
+async function loadBiaya() {
+  if (!periodId) return;
+  const data = await API.get(`/api/biaya/${periodId}`) || [];
+  const total = data.reduce((s, b) => s + b.nominal, 0);
+
+  const byKat = {};
+  data.forEach(b => { byKat[b.category] = (byKat[b.category] || 0) + b.nominal; });
+
+  document.getElementById('biayaStats').innerHTML = `
+    <div class="stat-card"><div class="stat-value" style="font-size:18px">${formatRupiah(total)}</div><div class="stat-label">Total Biaya</div></div>
+    <div class="stat-card"><div class="stat-value">${data.length}</div><div class="stat-label">Item Biaya</div></div>
+  `;
+
+  const el = document.getElementById('biayaList');
+  if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><div class="empty-text">Belum ada data biaya operasional</div></div>'; return; }
+
+  const grouped = {};
+  data.forEach(b => { if (!grouped[b.category]) grouped[b.category] = []; grouped[b.category].push(b); });
+
+  el.innerHTML = Object.entries(grouped).map(([kat, items]) => {
+    const katTotal = items.reduce((s, i) => s + i.nominal, 0);
+    return `
+      <div class="card" style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:600;color:var(--green)">${kat}</div>
+          <div style="font-size:13px;font-weight:600">${formatRupiah(katTotal)}</div>
+        </div>
+        ${items.map(i => `
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:13px">
+            <div>
+              <div>${i.item_name}</div>
+              <div style="font-size:11px;color:var(--gray-600)">${formatDate(i.cost_date)} ${i.is_auto ? '(Otomatis)' : ''}</div>
+            </div>
+            <div style="font-weight:500">${formatRupiah(i.nominal)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }).join('') + `
+    <div class="card" style="background:var(--green-pale);border-color:var(--green)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:600;color:var(--green)">GRAND TOTAL</div>
+        <div style="font-size:20px;font-weight:800;color:var(--green)">${formatRupiah(total)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function openBiayaModal() {
+  document.getElementById('biayaDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('biayaNominal').value = '';
+  document.getElementById('biayaItem').value = '';
+  openModal('biayaModal');
+}
+
+async function saveBiaya() {
+  const cost_date = document.getElementById('biayaDate').value;
+  const category = document.getElementById('biayaKat').value;
+  const item_name = document.getElementById('biayaItem').value.trim();
+  const nominal = parseInt(document.getElementById('biayaNominal').value);
+  if (!cost_date || !item_name || !nominal) { showToast('Semua field wajib diisi', 'error'); return; }
+  const res = await API.post('/api/biaya', { period_id: periodId, farm_id: farmData.id, cost_date, category, item_name, nominal });
+  if (res?.success) { showToast('Biaya disimpan', 'success'); closeModal('biayaModal'); loadBiaya(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function exportBiaya() {
+  showToast('Menyiapkan export...', 'info');
+  const data = await API.get(`/api/biaya/${periodId}/export`);
+  if (data?.csv) {
+    const blob = new Blob([data.csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `biaya-${farmData.name}-periode-${periodData?.period_number || ''}.csv`;
+    a.click();
+    showToast('Export berhasil', 'success');
+  } else showToast('Gagal export', 'error');
+}
+
+async function loadRecording() {
+  const data = await API.get(`/api/arsip/recording/${periodId}`) || [];
+  const el = document.getElementById('recordingList');
+  if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📷</div><div class="empty-text">Belum ada foto recording</div></div>'; return; }
+  el.innerHTML = data.map(r => `
+    <div class="card" style="margin-bottom:8px">
+      <div style="font-size:12px;color:var(--gray-600);margin-bottom:8px">${formatDate(r.uploaded_at)} &bull; ${r.image_name || 'Recording'}</div>
+      <img src="${r.image_data}" style="width:100%;border-radius:6px;object-fit:cover;max-height:200px" alt="Recording">
+    </div>
+  `).join('');
+}
+
+async function uploadRecording(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('Ukuran file maksimal 5MB', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const res = await API.post('/api/arsip/recording', { period_id: periodId, farm_id: farmData.id, image_data: e.target.result, image_name: file.name });
+    if (res?.success) { showToast('Foto berhasil diupload', 'success'); loadRecording(); }
+    else showToast('Gagal upload', 'error');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function loadArsip() {
+  const data = await API.get(`/api/periods/farm/${farmData.id}`) || [];
+  const el = document.getElementById('arsipList');
+  if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📁</div><div class="empty-text">Belum ada arsip periode</div></div>'; return; }
+  el.innerHTML = data.map(p => `
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-size:15px;font-weight:600">Periode ${p.period_number}</div>
+          <div style="font-size:12px;color:var(--gray-600)">CI: ${formatDate(p.chick_in_date)}</div>
+        </div>
+        <span class="period-badge ${p.status === 'closed' ? 'period-closed' : ''}">${p.status === 'active' ? 'Aktif' : 'Closed'}</span>
+      </div>
+      ${p.fcr > 0 ? `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:12px;text-align:center">
+          <div style="background:var(--gray-50);padding:6px;border-radius:6px"><div style="font-weight:700;color:var(--green)">${p.fcr.toFixed(3)}</div><div style="color:var(--gray-600)">FCR</div></div>
+          <div style="background:var(--gray-50);padding:6px;border-radius:6px"><div style="font-weight:700">${p.pakan_total_zak}</div><div style="color:var(--gray-600)">Pakan (zak)</div></div>
+          <div style="background:var(--gray-50);padding:6px;border-radius:6px"><div style="font-weight:700">${p.tonase_panen}</div><div style="color:var(--gray-600)">Tonase (kg)</div></div>
+        </div>
+      ` : ''}
+      ${p.status === 'closed' ? `<div style="font-size:12px;color:var(--gray-600);margin-top:6px">Ditutup: ${formatDate(p.closed_at)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function goBack() { window.location.href = `farm.html?farm=${farmCode}`; }
+init();
+</script>
+</body>
+</html>

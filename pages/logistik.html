@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Logistik dan Kas - JJ-Rolu Farm</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="app-header">
+  <div class="header-left">
+    <span class="header-back" onclick="goBack()">&#8592;</span>
+    <div>
+      <div class="header-title">Logistik dan Kas</div>
+      <div class="header-subtitle" id="headerSub"></div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-nav" id="tabNav">
+  <button class="tab-btn active" onclick="switchTab('solar',this)">Solar</button>
+  <button class="tab-btn" onclick="switchTab('harian',this)">Harian</button>
+  <button class="tab-btn" onclick="switchTab('obat',this)">Stok Obat</button>
+  <button class="tab-btn" onclick="switchTab('kasbon',this)">Kasbon ABK</button>
+  <button class="tab-btn" onclick="switchTab('konsumsi',this)">Konsumsi ABK</button>
+  <button class="tab-btn" onclick="switchTab('logistikabk',this)">Logistik ABK</button>
+</div>
+
+<div class="main-content" style="padding-top:8px">
+
+  <!-- TAB SOLAR -->
+  <div id="tab-solar" class="tab-content active">
+    <div class="card" id="solarStockCard"></div>
+    <div class="section-header">
+      <span class="section-title">Riwayat Solar</span>
+      <span id="addSolarBtn"></span>
+    </div>
+    <div id="solarList"></div>
+  </div>
+
+  <!-- TAB HARIAN -->
+  <div id="tab-harian" class="tab-content">
+    <div class="section-header">
+      <span class="section-title">Input Harian</span>
+      <span id="addHarianBtn"></span>
+    </div>
+    <div id="harianList"></div>
+  </div>
+
+  <!-- TAB STOK OBAT -->
+  <div id="tab-obat" class="tab-content">
+    <div class="section-header">
+      <span class="section-title">Stok Obat</span>
+      <span id="addObatBtn"></span>
+    </div>
+    <div id="obatList"></div>
+  </div>
+
+  <!-- TAB KASBON -->
+  <div id="tab-kasbon" class="tab-content">
+    <div class="section-header">
+      <span class="section-title">Kasbon ABK</span>
+      <span id="addKasbonBtn"></span>
+    </div>
+    <div id="kasbonList"></div>
+  </div>
+
+  <!-- TAB KONSUMSI ABK -->
+  <div id="tab-konsumsi" class="tab-content">
+    <div class="card" id="konsumsiScheduleCard"></div>
+    <div class="section-header" style="margin-top:12px">
+      <span class="section-title">Riwayat Konsumsi</span>
+    </div>
+    <div id="konsumsiList"></div>
+  </div>
+
+  <!-- TAB LOGISTIK ABK -->
+  <div id="tab-logistikabk" class="tab-content">
+    <div class="section-header">
+      <span class="section-title">Logistik ABK</span>
+      <span id="addLogistikAbkBtn"></span>
+    </div>
+    <div id="logistikAbkList"></div>
+  </div>
+
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fabBtn" style="display:none" aria-label="Tambah data">+</button>
+
+<!-- MODAL SOLAR -->
+<div class="modal-overlay" id="solarModal">
+  <div class="modal">
+    <div class="modal-title">Input Solar <button class="modal-close" onclick="closeModal('solarModal')">×</button></div>
+    <div class="form-group"><label>Tanggal</label><input type="date" id="solarDate"></div>
+    <div class="form-group"><label>Jumlah (liter)</label><input type="number" id="solarQty" placeholder="0" min="0"></div>
+    <div class="form-group"><label>Keterangan</label>
+      <select id="solarType" onchange="toggleSolarNominal()">
+        <option value="bawa">Bawa</option>
+        <option value="beli">Beli</option>
+      </select>
+    </div>
+    <div class="form-group" id="solarNominalGroup" style="display:none">
+      <label>Nominal (Rp)</label><input type="number" id="solarNominal" placeholder="0" min="0">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveSolar()">Simpan</button>
+  </div>
+</div>
+
+<!-- MODAL HARIAN -->
+<div class="modal-overlay" id="harianModal">
+  <div class="modal">
+    <div class="modal-title">Input Harian <button class="modal-close" onclick="closeModal('harianModal')">×</button></div>
+    <div class="form-group"><label>Tanggal</label><input type="date" id="harianDate"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group"><label>Pakan (zak)</label><input type="number" id="h_pakan" placeholder="0" min="0" step="0.5"></div>
+      <div class="form-group"><label>Karung (lembar)</label><input type="number" id="h_karung" placeholder="0" min="0"></div>
+      <div class="form-group"><label>Sekam (zak)</label><input type="number" id="h_sekam" placeholder="0" min="0" step="0.5"></div>
+      <div class="form-group"><label>Pelet (zak)</label><input type="number" id="h_pelet" placeholder="0" min="0" step="0.5"></div>
+      <div class="form-group"><label>LPG Segel</label><input type="number" id="h_lpg_segel" placeholder="0" min="0"></div>
+      <div class="form-group"><label>LPG Kosong</label><input type="number" id="h_lpg_kosong" placeholder="0" min="0"></div>
+      <div class="form-group"><label>LPG Terpakai</label><input type="number" id="h_lpg_pakai" placeholder="0" min="0"></div>
+      <div class="form-group"><label>Gasolec (biji)</label><input type="number" id="h_gasolec" placeholder="0" min="0"></div>
+    </div>
+    <div class="form-group"><label>PLN (Rp)</label><input type="number" id="h_pln" placeholder="0" min="0"></div>
+    <div class="form-group"><label>PDAM (Rp)</label><input type="number" id="h_pdam" placeholder="0" min="0"></div>
+    <div class="section-header" style="margin-top:4px">
+      <span class="section-title" style="font-size:14px">Lain-lain</span>
+      <button class="btn btn-sm btn-ghost" onclick="addExtraRow()">+ Tambah</button>
+    </div>
+    <div id="extraRows"></div>
+    <button class="btn btn-primary btn-full" style="margin-top:12px" onclick="saveHarian()">Simpan</button>
+  </div>
+</div>
+
+<!-- MODAL OBAT -->
+<div class="modal-overlay" id="obatModal">
+  <div class="modal">
+    <div class="modal-title" id="obatModalTitle">Edit Stok Obat <button class="modal-close" onclick="closeModal('obatModal')">×</button></div>
+    <div class="form-group"><label>Stok Awal</label><input type="number" id="obatStok" placeholder="0" min="0"></div>
+    <div class="form-group"><label>Harga Satuan (Rp)</label><input type="number" id="obatHarga" placeholder="0" min="0"></div>
+    <button class="btn btn-primary btn-full" onclick="saveObat()">Simpan</button>
+  </div>
+</div>
+
+<!-- MODAL OBAT KELUAR -->
+<div class="modal-overlay" id="obatKeluarModal">
+  <div class="modal">
+    <div class="modal-title">Catat Obat Keluar <button class="modal-close" onclick="closeModal('obatKeluarModal')">×</button></div>
+    <div class="form-group"><label>Tanggal</label><input type="date" id="obatKeluarDate"></div>
+    <div class="form-group"><label>Jumlah Keluar</label><input type="number" id="obatKeluarQty" placeholder="0" min="0" step="0.5"></div>
+    <div class="form-group"><label>Catatan (opsional)</label><textarea id="obatKeluarNotes" rows="2" placeholder="Catatan..."></textarea></div>
+    <button class="btn btn-primary btn-full" onclick="saveObatKeluar()">Simpan</button>
+  </div>
+</div>
+
+<!-- MODAL KASBON -->
+<div class="modal-overlay" id="kasbonModal">
+  <div class="modal">
+    <div class="modal-title">Tambah Kasbon <button class="modal-close" onclick="closeModal('kasbonModal')">×</button></div>
+    <div class="form-group"><label>Nama ABK</label>
+      <select id="kasbonAbk"><option value="">Pilih ABK...</option></select>
+    </div>
+    <div class="form-group"><label>Tanggal</label><input type="date" id="kasbonDate"></div>
+    <div class="form-group"><label>Nominal (Rp)</label><input type="number" id="kasbonNominal" placeholder="0" min="0"></div>
+    <button class="btn btn-primary btn-full" onclick="saveKasbon()">Simpan</button>
+  </div>
+</div>
+
+<!-- MODAL LOGISTIK ABK -->
+<div class="modal-overlay" id="logistikAbkModal">
+  <div class="modal">
+    <div class="modal-title">Tambah Logistik ABK <button class="modal-close" onclick="closeModal('logistikAbkModal')">×</button></div>
+    <div class="form-group"><label>Nama Barang</label><input type="text" id="logAbkNama" placeholder="Nama barang"></div>
+    <div class="form-group"><label>Jumlah</label><input type="number" id="logAbkQty" placeholder="0" min="0" step="0.5"></div>
+    <div class="form-group"><label>Nominal (Rp) - opsional</label><input type="number" id="logAbkNominal" placeholder="0" min="0"></div>
+    <button class="btn btn-primary btn-full" onclick="saveLogistikAbk()">Simpan</button>
+  </div>
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const farmCode = params.get('farm') || localStorage.getItem('jjrolu_farm');
+const periodId = localStorage.getItem('jjrolu_period');
+let farmData = null;
+let currentObatId = null;
+let extraCount = 0;
+const ABK_DATA = {farm1:['Zainuri','Dol','Kupat'], farm2:['Panji','Sipeng']};
+
+async function init() {
+  if (!Auth.isLoggedIn()) { window.location.href = '../index.html'; return; }
+  const farms = await API.get('/api/farms');
+  farmData = farms?.find(f => f.code === farmCode);
+  if (!farmData || !periodId) { window.location.href = '../index.html'; return; }
+  document.getElementById('headerSub').textContent = `${farmData.name} - ${farmData.location}`;
+
+  const isAdmin = Auth.isAdmin();
+  if (isAdmin) {
+    document.getElementById('addSolarBtn').innerHTML = `<button class="btn btn-sm btn-ghost" onclick="openSolarModal()">+ Input</button>`;
+    document.getElementById('addHarianBtn').innerHTML = `<button class="btn btn-sm btn-ghost" onclick="openHarianModal()">+ Input</button>`;
+    document.getElementById('addObatBtn').innerHTML = `<button class="btn btn-sm btn-ghost" onclick="addCustomObat()">+ Obat Baru</button>`;
+    document.getElementById('addKasbonBtn').innerHTML = `<button class="btn btn-sm btn-ghost" onclick="openKasbonModal()">+ Kasbon</button>`;
+    document.getElementById('addLogistikAbkBtn').innerHTML = `<button class="btn btn-sm btn-ghost" onclick="openLogistikAbkModal()">+ Tambah</button>`;
+  }
+
+  const abkSelect = document.getElementById('kasbonAbk');
+  (ABK_DATA[farmCode] || []).forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    abkSelect.appendChild(opt);
+  });
+
+  loadSolar(); loadHarian(); loadObat(); loadKasbon(); loadKonsumsi(); loadLogistikAbk();
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+
+async function loadSolar() {
+  const [stock, txns] = await Promise.all([
+    API.get(`/api/logistik/solar-stock/${periodId}`),
+    API.get(`/api/logistik/solar/${periodId}`) || []
+  ]);
+
+  const used = (txns || []).reduce((s, t) => s + t.quantity, 0);
+  const initial = stock?.initial_stock || 0;
+
+  document.getElementById('solarStockCard').innerHTML = `
+    <div class="stats-row" style="margin-bottom:10px">
+      <div class="stat-card"><div class="stat-value">${initial}</div><div class="stat-label">Stok Awal (L)</div></div>
+      <div class="stat-card"><div class="stat-value">${used}</div><div class="stat-label">Masuk (L)</div></div>
+    </div>
+    ${Auth.isAdmin() ? `
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="flex:1"><label style="font-size:12px">Stok Awal (liter)</label><input type="number" id="solarInitInput" value="${initial}" min="0" placeholder="0"></div>
+        <button class="btn btn-secondary" onclick="saveSolarInit()" style="padding:12px 14px">Simpan</button>
+      </div>
+    ` : `<div style="font-size:13px;color:var(--gray-600)">Stok awal: ${initial} liter</div>`}
+  `;
+
+  const el = document.getElementById('solarList');
+  if (!txns?.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">⛽</div><div class="empty-text">Belum ada data solar</div></div>'; return; }
+  el.innerHTML = txns.map(t => `
+    <div class="card" style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:14px;font-weight:500">${formatDate(t.trans_date)}</div>
+        <span class="badge ${t.type === 'beli' ? 'badge-today' : 'badge-done'}">${t.type === 'beli' ? 'Beli' : 'Bawa'}</span>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:18px;font-weight:700;color:var(--green)">${t.quantity} L</div>
+        ${t.nominal ? `<div style="font-size:12px;color:var(--gray-600)">${formatRupiah(t.nominal)}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function saveSolarInit() {
+  const val = parseFloat(document.getElementById('solarInitInput').value) || 0;
+  const res = await API.put(`/api/logistik/solar-stock/${periodId}`, { initial_stock: val });
+  if (res?.success) { showToast('Stok awal disimpan', 'success'); loadSolar(); }
+}
+
+function openSolarModal() {
+  document.getElementById('solarDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('solarQty').value = '';
+  document.getElementById('solarNominal').value = '';
+  document.getElementById('solarType').value = 'bawa';
+  document.getElementById('solarNominalGroup').style.display = 'none';
+  openModal('solarModal');
+}
+
+function toggleSolarNominal() {
+  document.getElementById('solarNominalGroup').style.display = document.getElementById('solarType').value === 'beli' ? 'block' : 'none';
+}
+
+async function saveSolar() {
+  const trans_date = document.getElementById('solarDate').value;
+  const quantity = parseFloat(document.getElementById('solarQty').value);
+  const type = document.getElementById('solarType').value;
+  const nominal = type === 'beli' ? parseInt(document.getElementById('solarNominal').value) || 0 : 0;
+  if (!quantity || quantity <= 0) { showToast('Jumlah solar wajib diisi', 'error'); return; }
+  const res = await API.post('/api/logistik/solar', { period_id: periodId, trans_date, quantity, type, nominal });
+  if (res?.success) { showToast('Solar disimpan', 'success'); closeModal('solarModal'); loadSolar(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function loadHarian() {
+  const data = await API.get(`/api/logistik/harian/${periodId}`) || [];
+  const el = document.getElementById('harianList');
+  if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Belum ada pencatatan harian</div></div>'; return; }
+  el.innerHTML = data.map(d => `
+    <div class="card" style="margin-bottom:8px">
+      <div style="font-weight:600;margin-bottom:8px">${formatDate(d.record_date)}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:13px">
+        ${d.pakan_zak ? `<div style="color:var(--gray-600)">Pakan</div><div style="font-weight:500;text-align:right">${d.pakan_zak} zak</div>` : ''}
+        ${d.karung_lembar ? `<div style="color:var(--gray-600)">Karung</div><div style="font-weight:500;text-align:right">${d.karung_lembar} lembar</div>` : ''}
+        ${d.lpg_terpakai ? `<div style="color:var(--gray-600)">LPG Terpakai</div><div style="font-weight:500;text-align:right">${d.lpg_terpakai} tabung</div>` : ''}
+        ${d.pln_nominal ? `<div style="color:var(--gray-600)">PLN</div><div style="font-weight:500;text-align:right">${formatRupiah(d.pln_nominal)}</div>` : ''}
+        ${d.pdam_nominal ? `<div style="color:var(--gray-600)">PDAM</div><div style="font-weight:500;text-align:right">${formatRupiah(d.pdam_nominal)}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function openHarianModal() {
+  document.getElementById('harianDate').value = new Date().toISOString().split('T')[0];
+  ['pakan','karung','sekam','pelet','lpg_segel','lpg_kosong','lpg_pakai','gasolec'].forEach(f => document.getElementById(`h_${f}`).value = '');
+  document.getElementById('h_pln').value = '';
+  document.getElementById('h_pdam').value = '';
+  document.getElementById('extraRows').innerHTML = '';
+  extraCount = 0;
+  openModal('harianModal');
+}
+
+function addExtraRow() {
+  extraCount++;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px';
+  row.innerHTML = `<input type="text" placeholder="Nama item" id="extra_name_${extraCount}"><input type="number" placeholder="Jumlah" id="extra_qty_${extraCount}" min="0">`;
+  document.getElementById('extraRows').appendChild(row);
+}
+
+async function saveHarian() {
+  const record_date = document.getElementById('harianDate').value;
+  if (!record_date) { showToast('Tanggal wajib diisi', 'error'); return; }
+  const body = {
+    period_id: periodId, record_date,
+    pakan_zak: parseFloat(document.getElementById('h_pakan').value) || 0,
+    karung_lembar: parseFloat(document.getElementById('h_karung').value) || 0,
+    sekam_zak: parseFloat(document.getElementById('h_sekam').value) || 0,
+    pelet_zak: parseFloat(document.getElementById('h_pelet').value) || 0,
+    lpg_segel: parseInt(document.getElementById('h_lpg_segel').value) || 0,
+    lpg_kosong: parseInt(document.getElementById('h_lpg_kosong').value) || 0,
+    lpg_terpakai: parseInt(document.getElementById('h_lpg_pakai').value) || 0,
+    gasolec_biji: parseInt(document.getElementById('h_gasolec').value) || 0,
+    pln_nominal: parseInt(document.getElementById('h_pln').value) || 0,
+    pdam_nominal: parseInt(document.getElementById('h_pdam').value) || 0,
+    extras: []
+  };
+  for (let i = 1; i <= extraCount; i++) {
+    const name = document.getElementById(`extra_name_${i}`)?.value?.trim();
+    const qty = parseFloat(document.getElementById(`extra_qty_${i}`)?.value) || 0;
+    if (name) body.extras.push({ item_name: name, quantity: qty });
+  }
+  const res = await API.post('/api/logistik/harian', body);
+  if (res?.success) { showToast('Data harian disimpan', 'success'); closeModal('harianModal'); loadHarian(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function loadObat() {
+  const data = await API.get(`/api/logistik/obat/${periodId}`) || [];
+  const el = document.getElementById('obatList');
+  el.innerHTML = data.map(o => `
+    <div class="card" style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div style="font-size:14px;font-weight:500">${o.medicine_name}</div>
+        ${Auth.isAdmin() ? `
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-sm btn-secondary" onclick="openObatModal(${o.id},'${o.medicine_name}',${o.initial_stock},${o.price_per_unit})">Edit</button>
+            <button class="btn btn-sm btn-ghost" onclick="openObatKeluar(${o.id},'${o.medicine_name}')">Keluar</button>
+          </div>
+        ` : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:12px">
+        <div style="text-align:center;background:var(--gray-50);padding:6px;border-radius:6px">
+          <div style="font-weight:700;color:var(--green)">${o.initial_stock}</div>
+          <div style="color:var(--gray-600)">Stok awal</div>
+        </div>
+        <div style="text-align:center;background:var(--gray-50);padding:6px;border-radius:6px">
+          <div style="font-weight:700;color:var(--red)">${o.initial_stock - o.current_stock}</div>
+          <div style="color:var(--gray-600)">Terpakai</div>
+        </div>
+        <div style="text-align:center;background:var(--gray-50);padding:6px;border-radius:6px">
+          <div style="font-weight:700">${o.current_stock}</div>
+          <div style="color:var(--gray-600)">Sisa</div>
+        </div>
+      </div>
+      ${o.price_per_unit ? `<div style="font-size:12px;color:var(--gray-600);margin-top:6px">Harga: ${formatRupiah(o.price_per_unit)} &bull; Total terpakai: ${formatRupiah((o.initial_stock - o.current_stock) * o.price_per_unit)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function openObatModal(id, name, stok, harga) {
+  currentObatId = id;
+  document.getElementById('obatModalTitle').childNodes[0].textContent = `Edit: ${name} `;
+  document.getElementById('obatStok').value = stok || '';
+  document.getElementById('obatHarga').value = harga || '';
+  openModal('obatModal');
+}
+
+async function saveObat() {
+  const initial_stock = parseFloat(document.getElementById('obatStok').value) || 0;
+  const price_per_unit = parseInt(document.getElementById('obatHarga').value) || 0;
+  const res = await API.put(`/api/logistik/obat/${currentObatId}`, { initial_stock, price_per_unit });
+  if (res?.success) { showToast('Stok obat disimpan', 'success'); closeModal('obatModal'); loadObat(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function addCustomObat() {
+  const name = prompt('Nama obat baru:');
+  if (!name) return;
+  const res = await API.post('/api/logistik/obat', { period_id: periodId, medicine_name: name, is_custom: true });
+  if (res?.success) { showToast('Obat ditambahkan', 'success'); loadObat(); }
+}
+
+function openObatKeluar(id, name) {
+  currentObatId = id;
+  document.getElementById('obatKeluarDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('obatKeluarQty').value = '';
+  document.getElementById('obatKeluarNotes').value = '';
+  openModal('obatKeluarModal');
+}
+
+async function saveObatKeluar() {
+  const out_date = document.getElementById('obatKeluarDate').value;
+  const quantity = parseFloat(document.getElementById('obatKeluarQty').value);
+  const notes = document.getElementById('obatKeluarNotes').value.trim();
+  if (!quantity || quantity <= 0) { showToast('Jumlah keluar wajib diisi', 'error'); return; }
+  const res = await API.post('/api/logistik/obat-keluar', { medicine_stock_id: currentObatId, period_id: periodId, quantity, out_date, notes });
+  if (res?.success) { showToast('Obat keluar disimpan', 'success'); closeModal('obatKeluarModal'); loadObat(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function loadKasbon() {
+  const data = await API.get(`/api/logistik/kasbon/${periodId}`) || [];
+  const el = document.getElementById('kasbonList');
+  const total = data.reduce((s, k) => s + k.nominal, 0);
+  if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><div class="empty-text">Belum ada kasbon</div></div>'; return; }
+  el.innerHTML = `<div class="card" style="margin-bottom:10px;background:var(--green-pale);border-color:var(--green)">
+    <div style="font-size:12px;color:var(--green)">Total Kasbon Periode Ini</div>
+    <div style="font-size:22px;font-weight:700;color:var(--green)">${formatRupiah(total)}</div>
+  </div>` + data.map(k => `
+    <div class="card" style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:14px;font-weight:500">${k.abk_name}</div>
+        <div style="font-size:12px;color:var(--gray-600)">${formatDate(k.kasbon_date)}</div>
+      </div>
+      <div style="font-size:16px;font-weight:700;color:var(--red)">${formatRupiah(k.nominal)}</div>
+    </div>
+  `).join('');
+}
+
+function openKasbonModal() {
+  document.getElementById('kasbonDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('kasbonNominal').value = '';
+  openModal('kasbonModal');
+}
+
+async function saveKasbon() {
+  const abk_name = document.getElementById('kasbonAbk').value;
+  const kasbon_date = document.getElementById('kasbonDate').value;
+  const nominal = parseInt(document.getElementById('kasbonNominal').value);
+  if (!abk_name || !kasbon_date || !nominal) { showToast('Semua field wajib diisi', 'error'); return; }
+  const res = await API.post('/api/logistik/kasbon', { period_id: periodId, farm_id: farmData.id, abk_name, kasbon_date, nominal });
+  if (res?.success) { showToast('Kasbon disimpan', 'success'); closeModal('kasbonModal'); loadKasbon(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function loadKonsumsi() {
+  const schedule = await API.get(`/api/logistik/konsumsi-schedule/${farmData.id}`);
+  const days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const items = farmCode === 'farm1'
+    ? 'Beras 5kg, Mie 12, Telur 12, Minyak 0.5L, Teh 1, Kopi 2, Gula 0.5kg'
+    : 'Beras 3.5kg, Mie 8, Telur 8, Minyak 0.5L, Teh 1, Kopi 2, Gula 0.5kg';
+
+  document.getElementById('konsumsiScheduleCard').innerHTML = `
+    <div style="margin-bottom:10px">
+      <div style="font-size:12px;color:var(--gray-600)">Jadwal pemberian</div>
+      <div style="font-size:16px;font-weight:700">Setiap hari ${days[schedule?.day_of_week ?? (farmCode === 'farm1' ? 1 : 3)]}</div>
+      <div style="font-size:12px;color:var(--gray-600);margin-top:4px">${items}</div>
+    </div>
+    ${Auth.isAdmin() ? `<button class="btn btn-primary btn-full" onclick="tandaiKonsumsi()">Tandai Sudah Diberikan</button>` : ''}
+  `;
+
+  const data = await API.get(`/api/logistik/konsumsi/${periodId}`) || [];
+  const el = document.getElementById('konsumsiList');
+  if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">🍚</div><div class="empty-text">Belum ada riwayat konsumsi</div></div>'; return; }
+  el.innerHTML = data.map(k => `
+    <div class="card" style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:14px">${formatDate(k.given_date)}</div>
+      <span class="badge badge-today">Sudah diberikan</span>
+    </div>
+  `).join('');
+}
+
+async function tandaiKonsumsi() {
+  const today = new Date().toISOString().split('T')[0];
+  const res = await API.post('/api/logistik/konsumsi/tandai', { period_id: periodId, farm_id: farmData.id, given_date: today });
+  if (res?.success) { showToast('Konsumsi ditandai sudah diberikan', 'success'); loadKonsumsi(); }
+  else showToast(res?.error || 'Gagal', 'error');
+}
+
+async function loadLogistikAbk() {
+  const data = await API.get(`/api/logistik/logistik-abk/${periodId}`) || [];
+  const el = document.getElementById('logistikAbkList');
+  if (!data.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">Belum ada data logistik ABK</div></div>'; return; }
+  el.innerHTML = data.map(l => `
+    <div class="card" style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:14px;font-weight:500">${l.item_name}</div>
+        <div style="font-size:12px;color:var(--gray-600)">Jumlah: ${l.quantity}</div>
+      </div>
+      ${l.nominal ? `<div style="font-size:14px;font-weight:600">${formatRupiah(l.nominal)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function openLogistikAbkModal() { openModal('logistikAbkModal'); }
+
+async function saveLogistikAbk() {
+  const item_name = document.getElementById('logAbkNama').value.trim();
+  const quantity = parseFloat(document.getElementById('logAbkQty').value);
+  const nominal = parseInt(document.getElementById('logAbkNominal').value) || 0;
+  if (!item_name || !quantity) { showToast('Nama dan jumlah wajib diisi', 'error'); return; }
+  const res = await API.post('/api/logistik/logistik-abk', { period_id: periodId, farm_id: farmData.id, item_name, quantity, nominal });
+  if (res?.success) { showToast('Logistik ABK disimpan', 'success'); closeModal('logistikAbkModal'); loadLogistikAbk(); document.getElementById('logAbkNama').value = ''; document.getElementById('logAbkQty').value = ''; document.getElementById('logAbkNominal').value = ''; }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+function goBack() { window.location.href = `farm.html?farm=${farmCode}`; }
+init();
+</script>
+</body>
+</html>

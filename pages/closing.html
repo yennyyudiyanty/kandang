@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Persiapan Closing - JJ-Rolu Farm</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="app-header">
+  <div class="header-left">
+    <span class="header-back" onclick="goBack()">&#8592;</span>
+    <div>
+      <div class="header-title">Persiapan Closing</div>
+      <div class="header-subtitle" id="headerSub"></div>
+    </div>
+  </div>
+</div>
+
+<div class="main-content">
+
+  <!-- Period Status -->
+  <div class="card" id="periodCard"></div>
+
+  <!-- Tanggal Pembersihan -->
+  <div class="card" id="dateCard">
+    <div class="card-title">Tanggal Pembersihan</div>
+    <div id="dateDisplay"></div>
+    <div id="dateInputSection" style="display:none">
+      <div class="form-group">
+        <label>Tanggal Rencana Pembersihan</label>
+        <input type="date" id="plannedDate">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="savePlannedDate()">Simpan Tanggal</button>
+    </div>
+  </div>
+
+  <!-- Warning Konsumsi -->
+  <div class="warning-box" id="konsumsiWarning" style="display:none">
+    Konsumsi ABK hanya untuk 3-4 hari — pastikan tidak berlebihan
+  </div>
+
+  <!-- Checklist -->
+  <div id="checklistSection" style="display:none">
+    <div class="section-header">
+      <span class="section-title">Checklist Persiapan Closing</span>
+    </div>
+
+    <!-- Pembersihan -->
+    <div class="card" style="margin-bottom:8px" id="checkPembersihan">
+      <div class="checklist-item" style="margin-bottom:0">
+        <div class="check-box" id="chkPembersihan" onclick="toggleCheck('pembersihan')"></div>
+        <div style="flex:1">
+          <div class="checklist-label">Pembersihan Kandang</div>
+          <div id="donePembersihanTime" style="font-size:12px;color:var(--gray-600)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sanchin -->
+    <div class="card" style="margin-bottom:8px">
+      <div class="checklist-item" style="margin-bottom:0">
+        <div class="check-box" id="chkSanchin" onclick="toggleCheck('sanchin')"></div>
+        <div style="flex:1">
+          <div class="checklist-label">Sanchin</div>
+          <div id="doneSanchinTime" style="font-size:12px;color:var(--gray-600)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bensin Sanchin -->
+    <div class="card" style="margin-bottom:8px">
+      <div class="checklist-item" style="margin-bottom:8px">
+        <div class="check-box" id="chkBensin" onclick="toggleCheck('bensin')"></div>
+        <div style="flex:1">
+          <div class="checklist-label">Bensin Sanchin</div>
+          <div id="doneBensinTime" style="font-size:12px;color:var(--gray-600)"></div>
+        </div>
+      </div>
+      <div id="bensinForm" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Jumlah (liter)</label>
+            <input type="number" id="bensinLiter" placeholder="0" min="0" step="0.5">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Nominal (Rp)</label>
+            <input type="number" id="bensinNominal" placeholder="0" min="0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Tanggal</label>
+          <input type="date" id="bensinDate">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="saveBensin()">Simpan Bensin</button>
+      </div>
+      <div id="bensinDetail" style="font-size:13px;color:var(--gray-600)"></div>
+    </div>
+
+    <!-- Konsumsi ABK -->
+    <div class="card" style="margin-bottom:8px;border-color:var(--red)">
+      <div class="warning-box" style="margin-bottom:8px">
+        Konsumsi hanya untuk 3-4 hari
+      </div>
+      <div class="checklist-item" style="margin-bottom:0">
+        <div class="check-box" id="chkKonsumsi" onclick="toggleCheck('konsumsi')"></div>
+        <div style="flex:1">
+          <div class="checklist-label">Konsumsi ABK</div>
+          <div id="doneKonsumsiTime" style="font-size:12px;color:var(--gray-600)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tanggal Selesai -->
+    <div class="card" id="finishDateCard">
+      <div class="card-title">Tanggal Selesai Pembersihan</div>
+      <div id="finishDateDisplay"></div>
+      <div id="finishDateInput" style="display:none">
+        <div class="form-group">
+          <label>Tanggal Selesai</label>
+          <input type="date" id="finishDate">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="saveFinishDate()">Simpan</button>
+      </div>
+    </div>
+
+    <!-- Tombol Tutup Periode -->
+    <div id="closePeriodBtn" style="display:none">
+      <div class="divider"></div>
+      <div class="card" style="background:var(--red-pale);border-color:var(--red);margin-bottom:0">
+        <div style="font-size:14px;font-weight:600;color:var(--red);margin-bottom:8px">Tutup Periode</div>
+        <div style="font-size:13px;color:var(--red);margin-bottom:12px">Pastikan semua checklist sudah selesai dan tonase panen sudah diinput di menu Arsip.</div>
+        <button class="btn btn-danger btn-full" onclick="goToArsip()">Input Tonase dan Tutup Periode</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const farmCode = params.get('farm') || localStorage.getItem('jjrolu_farm');
+const periodId = localStorage.getItem('jjrolu_period');
+let farmData = null;
+let periodData = null;
+let checklistData = null;
+
+async function init() {
+  if (!Auth.isLoggedIn()) { window.location.href = '../index.html'; return; }
+  const farms = await API.get('/api/farms');
+  farmData = farms?.find(f => f.code === farmCode);
+  if (!farmData || !periodId) { window.location.href = '../index.html'; return; }
+  document.getElementById('headerSub').textContent = `${farmData.name} - ${farmData.location}`;
+
+  periodData = await API.get(`/api/periods/${periodId}`);
+  if (periodData) {
+    const ci = new Date(periodData.chick_in_date);
+    const today = new Date();
+    const dayNum = Math.floor((today - ci) / (1000*60*60*24)) + 1;
+    document.getElementById('periodCard').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:12px;color:var(--gray-600)">Periode ${periodData.period_number}</div>
+          <div style="font-size:15px;font-weight:700">CI: ${formatDate(periodData.chick_in_date)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:26px;font-weight:800;color:var(--green)">Hari ${dayNum}</div>
+          <div class="period-badge ${periodData.status === 'closed' ? 'period-closed' : ''}">${periodData.status === 'active' ? 'Aktif' : 'Closed'}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  await loadChecklist();
+}
+
+async function loadChecklist() {
+  checklistData = await API.get(`/api/closing/${periodId}`);
+  if (!checklistData) return;
+
+  const isAdmin = Auth.isAdmin();
+  const isClosed = periodData?.status === 'closed';
+
+  if (checklistData.planned_date) {
+    document.getElementById('dateDisplay').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:12px;color:var(--gray-600)">Rencana pembersihan</div>
+          <div style="font-size:16px;font-weight:700">${formatDate(checklistData.planned_date)}</div>
+        </div>
+        ${isAdmin && !isClosed ? `<button class="btn btn-sm btn-secondary" onclick="showDateInput()">Ubah</button>` : ''}
+      </div>
+    `;
+    document.getElementById('checklistSection').style.display = 'block';
+    document.getElementById('konsumsiWarning').style.display = 'block';
+  } else {
+    if (isAdmin && !isClosed) {
+      document.getElementById('dateInputSection').style.display = 'block';
+      document.getElementById('plannedDate').value = new Date().toISOString().split('T')[0];
+    } else {
+      document.getElementById('dateDisplay').innerHTML = '<div style="font-size:13px;color:var(--gray-600)">Tanggal belum ditentukan</div>';
+    }
+  }
+
+  renderChecklist(isAdmin && !isClosed);
+
+  if (checklistData.finish_date) {
+    document.getElementById('finishDateDisplay').innerHTML = `<div style="font-size:16px;font-weight:700;color:var(--green)">${formatDate(checklistData.finish_date)}</div>`;
+    document.getElementById('finishDateInput').style.display = 'none';
+  } else if (isAdmin && !isClosed) {
+    document.getElementById('finishDateInput').style.display = 'block';
+    document.getElementById('finishDate').value = new Date().toISOString().split('T')[0];
+  }
+
+  const allDone = checklistData.pembersihan_done && checklistData.sanchin_done &&
+                  checklistData.bensin_done && checklistData.konsumsi_done;
+  if (allDone && Auth.isOwner() && !isClosed) {
+    document.getElementById('closePeriodBtn').style.display = 'block';
+  }
+}
+
+function renderChecklist(canEdit) {
+  const checks = [
+    { key: 'pembersihan', label: 'Pembersihan Kandang' },
+    { key: 'sanchin', label: 'Sanchin' },
+    { key: 'bensin', label: 'Bensin Sanchin' },
+    { key: 'konsumsi', label: 'Konsumsi ABK' }
+  ];
+
+  checks.forEach(c => {
+    const isDone = checklistData[`${c.key}_done`];
+    const doneAt = checklistData[`${c.key}_done_at`];
+    const chk = document.getElementById(`chk${c.key.charAt(0).toUpperCase() + c.key.slice(1)}`);
+    const timeEl = document.getElementById(`done${c.key.charAt(0).toUpperCase() + c.key.slice(1)}Time`);
+
+    if (chk) {
+      if (isDone) { chk.classList.add('checked'); }
+      else { chk.classList.remove('checked'); }
+      if (!canEdit) { chk.style.cursor = 'default'; chk.onclick = null; }
+    }
+    if (timeEl && doneAt) {
+      timeEl.textContent = `Selesai: ${formatDate(doneAt)}`;
+    }
+  });
+
+  if (checklistData.bensin_liter) {
+    document.getElementById('bensinDetail').textContent =
+      `${checklistData.bensin_liter} liter &bull; ${formatRupiah(checklistData.bensin_nominal)} &bull; ${formatDate(checklistData.bensin_date)}`;
+  }
+
+  if (!checklistData.bensin_done && canEdit) {
+    document.getElementById('bensinForm').style.display = 'block';
+    document.getElementById('bensinDate').value = new Date().toISOString().split('T')[0];
+  }
+}
+
+function showDateInput() {
+  document.getElementById('dateInputSection').style.display = 'block';
+  document.getElementById('plannedDate').value = checklistData.planned_date || new Date().toISOString().split('T')[0];
+}
+
+async function savePlannedDate() {
+  const planned_date = document.getElementById('plannedDate').value;
+  if (!planned_date) { showToast('Tanggal wajib diisi', 'error'); return; }
+  const res = await API.put(`/api/closing/${periodId}/planned-date`, { planned_date });
+  if (res?.success) { showToast('Tanggal disimpan', 'success'); loadChecklist(); document.getElementById('dateInputSection').style.display = 'none'; }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function toggleCheck(type) {
+  if (!Auth.isAdmin()) return;
+  const isDone = checklistData[`${type}_done`];
+  if (isDone) return;
+  const res = await API.put(`/api/closing/${periodId}/check/${type}`);
+  if (res?.success) { showToast('Checklist diperbarui', 'success'); loadChecklist(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function saveBensin() {
+  const bensin_liter = parseFloat(document.getElementById('bensinLiter').value);
+  const bensin_nominal = parseInt(document.getElementById('bensinNominal').value) || 0;
+  const bensin_date = document.getElementById('bensinDate').value;
+  if (!bensin_liter || !bensin_date) { showToast('Jumlah dan tanggal wajib diisi', 'error'); return; }
+  const res = await API.put(`/api/closing/${periodId}/bensin`, { bensin_liter, bensin_nominal, bensin_date });
+  if (res?.success) { showToast('Data bensin disimpan', 'success'); loadChecklist(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+async function saveFinishDate() {
+  const finish_date = document.getElementById('finishDate').value;
+  if (!finish_date) { showToast('Tanggal selesai wajib diisi', 'error'); return; }
+  const res = await API.put(`/api/closing/${periodId}/finish-date`, { finish_date });
+  if (res?.success) { showToast('Tanggal selesai disimpan', 'success'); loadChecklist(); }
+  else showToast('Gagal menyimpan', 'error');
+}
+
+function goToArsip() { window.location.href = `arsip.html?farm=${farmCode}`; }
+function goBack() { window.location.href = `farm.html?farm=${farmCode}`; }
+init();
+</script>
+</body>
+</html>

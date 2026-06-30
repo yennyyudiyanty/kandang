@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>JJ-Rolu Farm</title>
+  <meta name="theme-color" content="#2D6A4F">
+  <link rel="manifest" href="../manifest.json">
+  <link rel="icon" href="../logo.png">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div id="farmPage">
+  <div class="app-header">
+    <div class="header-left">
+      <span class="header-back" onclick="window.location.href='../index.html'">&#8592;</span>
+      <div>
+        <div class="header-title" id="farmTitle">Farm</div>
+        <div class="header-subtitle" id="farmSubtitle"></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="notif-btn" onclick="window.location.href='../index.html'">
+        🔔
+        <span class="notif-badge" id="notifBadge"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="main-content">
+
+    <!-- Period Info -->
+    <div id="periodInfo"></div>
+
+    <!-- Divider -->
+    <div class="divider"></div>
+
+    <!-- Menu Grid -->
+    <div class="section-header">
+      <span class="section-title">Menu Utama</span>
+    </div>
+
+    <div class="farm-menu-grid">
+      <div class="menu-item" onclick="goTo('brooding')">
+        <div class="menu-icon">🐣</div>
+        <div class="menu-label">Persiapan Brooding</div>
+      </div>
+      <div class="menu-item" onclick="goTo('ovk')">
+        <div class="menu-icon">💉</div>
+        <div class="menu-label">Jadwal OVK dan Herbal</div>
+      </div>
+      <div class="menu-item" onclick="goTo('logistik')">
+        <div class="menu-icon">📦</div>
+        <div class="menu-label">Logistik dan Kas</div>
+      </div>
+      <div class="menu-item" id="biayaMenu" onclick="goTo('arsip')" style="display:none">
+        <div class="menu-icon">📊</div>
+        <div class="menu-label">Arsip dan Perhitungan Biaya</div>
+      </div>
+      <div class="menu-item" onclick="goTo('closing')">
+        <div class="menu-icon">✅</div>
+        <div class="menu-label">Persiapan Closing</div>
+      </div>
+    </div>
+
+    <!-- Owner Menu -->
+    <div id="ownerMenu" style="display:none">
+      <div class="divider"></div>
+      <div class="section-header">
+        <span class="section-title">Menu Owner</span>
+      </div>
+      <div class="farm-menu-grid">
+        <div class="menu-item" onclick="goTo('arsip')">
+          <div class="menu-icon">📊</div>
+          <div class="menu-label">Arsip dan Perhitungan Biaya</div>
+        </div>
+        <div class="menu-item" onclick="openNewPeriodModal()">
+          <div class="menu-icon">🆕</div>
+          <div class="menu-label">Mulai Periode Baru</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- New Period Modal -->
+<div class="modal-overlay" id="newPeriodModal">
+  <div class="modal">
+    <div class="modal-title">
+      Mulai Periode Baru
+      <button class="modal-close" onclick="closeNewPeriodModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Tanggal Chick In</label>
+      <input type="date" id="chickInDate" min="2026-01-01">
+    </div>
+    <div class="form-group">
+      <label>Jumlah DOC (ekor) - opsional</label>
+      <input type="number" id="docCount" placeholder="0" min="0">
+    </div>
+    <div class="form-group">
+      <label>Harga DOC per ekor (Rp) - opsional</label>
+      <input type="number" id="docPrice" placeholder="0" min="0">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveNewPeriod()">Mulai Periode</button>
+  </div>
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const farmCode = params.get('farm') || localStorage.getItem('jjrolu_farm') || 'farm1';
+let farmData = null;
+let activePeriod = null;
+
+async function init() {
+  if (!Auth.isLoggedIn()) { window.location.href = '../index.html'; return; }
+
+  const farms = await API.get('/api/farms');
+  if (!farms) return;
+
+  farmData = farms.find(f => f.code === farmCode);
+  if (!farmData) { window.location.href = '../index.html'; return; }
+
+  document.getElementById('farmTitle').textContent = `${farmData.name} - ${farmData.location}`;
+  document.title = `${farmData.name} | JJ-Rolu Farm`;
+
+  const periods = await API.get(`/api/periods/farm/${farmData.id}`);
+  activePeriod = periods?.find(p => p.status === 'active');
+
+  if (activePeriod) {
+    const ci = new Date(activePeriod.chick_in_date);
+    const today = new Date();
+    const dayNum = Math.floor((today - ci) / (1000*60*60*24)) + 1;
+    document.getElementById('farmSubtitle').textContent = `Periode ${activePeriod.period_number} - Hari ke-${dayNum}`;
+    document.getElementById('periodInfo').innerHTML = `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:13px;color:#6C757D">Periode Aktif</div>
+            <div style="font-weight:700;font-size:16px">Periode ${activePeriod.period_number}</div>
+            <div style="font-size:13px;color:#6C757D;margin-top:2px">CI: ${formatDate(activePeriod.chick_in_date)}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:26px;font-weight:800;color:#2D6A4F">Hari ${dayNum}</div>
+            <div class="period-badge">Aktif</div>
+          </div>
+        </div>
+      </div>
+    `;
+    localStorage.setItem('jjrolu_period', activePeriod.id);
+  } else {
+    document.getElementById('farmSubtitle').textContent = 'Belum ada periode aktif';
+    document.getElementById('periodInfo').innerHTML = `
+      <div class="card">
+        <div class="empty-state">
+          <div class="empty-icon">🐣</div>
+          <div class="empty-text">Belum ada periode aktif di farm ini</div>
+          ${Auth.isAdmin() ? '<button class="btn btn-primary" onclick="openNewPeriodModal()">Mulai Periode Baru</button>' : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  if (Auth.isOwner()) {
+    document.getElementById('ownerMenu').style.display = 'block';
+  }
+
+  if (Auth.canAccessBiaya()) {
+    document.getElementById('biayaMenu').style.display = 'flex';
+  }
+
+  loadNotifCount();
+}
+
+function loadNotifCount() {
+  API.get('/api/notifications/unread-count').then(data => {
+    const badge = document.getElementById('notifBadge');
+    if (data?.count > 0) { badge.textContent = data.count > 9 ? '9+' : data.count; badge.style.display = 'flex'; }
+    else badge.style.display = 'none';
+  });
+}
+
+function goTo(page) {
+  if (!activePeriod && page !== 'arsip') {
+    showToast('Mulai periode baru terlebih dahulu', 'error');
+    return;
+  }
+  window.location.href = `${page}.html?farm=${farmCode}`;
+}
+
+function openNewPeriodModal() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('chickInDate').value = today;
+  document.getElementById('newPeriodModal').classList.add('open');
+}
+
+function closeNewPeriodModal() { document.getElementById('newPeriodModal').classList.remove('open'); }
+
+async function saveNewPeriod() {
+  const chick_in_date = document.getElementById('chickInDate').value;
+  const doc_count = document.getElementById('docCount').value;
+  const doc_price = document.getElementById('docPrice').value;
+
+  if (!chick_in_date) { showToast('Tanggal CI wajib diisi', 'error'); return; }
+
+  const res = await API.post('/api/periods', {
+    farm_id: farmData.id,
+    chick_in_date,
+    doc_count: doc_count || 0,
+    doc_price: doc_price || 0
+  });
+
+  if (res?.success) {
+    showToast(`Periode ${res.period_number} berhasil dimulai`, 'success');
+    closeNewPeriodModal();
+    setTimeout(() => location.reload(), 1000);
+  } else {
+    showToast(res?.error || 'Gagal membuat periode', 'error');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Manajemen User - JJ-Rolu Farm</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="app-header">
+  <div class="header-left">
+    <span class="header-back" onclick="window.location.href='../index.html'">&#8592;</span>
+    <div>
+      <div class="header-title">Manajemen User</div>
+      <div class="header-subtitle">Pengaturan akses aplikasi</div>
+    </div>
+  </div>
+</div>
+
+<div class="main-content">
+
+  <div class="section-header">
+    <span class="section-title">Daftar User</span>
+    <button class="btn btn-sm btn-ghost" onclick="openAddModal()">+ Tambah User</button>
+  </div>
+
+  <div id="userList"></div>
+
+  <div class="divider"></div>
+
+  <div class="section-header">
+    <span class="section-title">Master Harga Satuan</span>
+  </div>
+  <div style="font-size:13px;color:var(--gray-600);margin-bottom:12px">Harga digunakan untuk kalkulasi otomatis biaya operasional</div>
+  <div id="priceList"></div>
+
+</div>
+
+<!-- Modal Tambah User -->
+<div class="modal-overlay" id="addUserModal">
+  <div class="modal">
+    <div class="modal-title">Tambah User <button class="modal-close" onclick="closeModal('addUserModal')">×</button></div>
+    <div class="form-group"><label>Nama Lengkap</label><input type="text" id="newName" placeholder="Nama user"></div>
+    <div class="form-group"><label>Username</label><input type="text" id="newUsername" placeholder="Username untuk login" autocorrect="off" autocapitalize="off"></div>
+    <div class="form-group"><label>Password</label><input type="password" id="newPassword" placeholder="Password"></div>
+    <div class="form-group"><label>Role</label>
+      <select id="newRole">
+        <option value="owner">Owner</option>
+        <option value="admin" selected>Admin</option>
+        <option value="petugas">Petugas Lapangan</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Nomor WhatsApp</label><input type="tel" id="newWA" placeholder="08xxxxxxxxxx"></div>
+    <button class="btn btn-primary btn-full" onclick="saveUser()">Tambah User</button>
+  </div>
+</div>
+
+<!-- Modal Reset Password -->
+<div class="modal-overlay" id="resetPwModal">
+  <div class="modal">
+    <div class="modal-title" id="resetPwTitle">Reset Password <button class="modal-close" onclick="closeModal('resetPwModal')">×</button></div>
+    <div class="form-group"><label>Password Baru</label><input type="password" id="newPw" placeholder="Password baru"></div>
+    <button class="btn btn-primary btn-full" onclick="saveResetPw()">Simpan Password</button>
+  </div>
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script>
+let selectedUserId = null;
+
+async function init() {
+  if (!Auth.isLoggedIn() || !Auth.isOwner()) { window.location.href = '../index.html'; return; }
+  loadUsers();
+  loadPrices();
+}
+
+async function loadUsers() {
+  const users = await API.get('/api/auth/users') || [];
+  const el = document.getElementById('userList');
+  const roleLabel = { owner: 'Owner', admin: 'Admin', petugas: 'Petugas Lapangan' };
+  const roleColor = { owner: 'var(--green)', admin: '#1565C0', petugas: '#6C757D' };
+
+  el.innerHTML = users.map(u => `
+    <div class="card" style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-size:15px;font-weight:600">${u.name}</div>
+          <div style="font-size:12px;color:var(--gray-600)">@${u.username}</div>
+          ${u.whatsapp ? `<div style="font-size:12px;color:var(--gray-600)">WA: ${u.whatsapp}</div>` : ''}
+        </div>
+        <span style="font-size:11px;font-weight:600;color:${roleColor[u.role]};background:${roleColor[u.role]}20;padding:3px 8px;border-radius:10px">${roleLabel[u.role]}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-secondary" onclick="openResetPw(${u.id},'${u.name}')">Reset Password</button>
+        ${u.role === 'admin' ? `<button class="btn btn-sm ${u.biaya_access ? 'btn-danger' : 'btn-ghost'}" onclick="toggleBiaya(${u.id},${u.biaya_access})">${u.biaya_access ? 'Cabut Akses Biaya' : 'Beri Akses Biaya'}</button>` : ''}
+        ${u.id !== Auth.getUser().id ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id},'${u.name}')">Hapus</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadPrices() {
+  const prices = await API.get('/api/logistik/master-harga') || [];
+  const el = document.getElementById('priceList');
+  el.innerHTML = prices.map(p => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-size:14px;font-weight:500">${p.item_name}</div>
+        <div style="font-size:12px;color:var(--gray-600)">per ${p.unit}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" value="${p.price_per_unit || 0}" min="0" style="width:120px;text-align:right;font-size:14px" id="price_${p.id}" onchange="savePrice(${p.id})">
+      </div>
+    </div>
+  `).join('');
+}
+
+async function savePrice(id) {
+  const val = parseInt(document.getElementById(`price_${id}`).value) || 0;
+  const res = await API.put(`/api/logistik/master-harga/${id}`, { price_per_unit: val });
+  if (res?.success) showToast('Harga disimpan', 'success');
+  else showToast('Gagal menyimpan', 'error');
+}
+
+function openAddModal() { document.getElementById('addUserModal').classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+async function saveUser() {
+  const name = document.getElementById('newName').value.trim();
+  const username = document.getElementById('newUsername').value.trim();
+  const password = document.getElementById('newPassword').value;
+  const role = document.getElementById('newRole').value;
+  const whatsapp = document.getElementById('newWA').value.trim();
+  if (!name || !username || !password) { showToast('Nama, username, dan password wajib diisi', 'error'); return; }
+  const res = await API.post('/api/auth/users', { name, username, password, role, whatsapp, farm: 'all' });
+  if (res?.success) { showToast('User berhasil ditambahkan', 'success'); closeModal('addUserModal'); loadUsers(); document.getElementById('newName').value = ''; document.getElementById('newUsername').value = ''; document.getElementById('newPassword').value = ''; document.getElementById('newWA').value = ''; }
+  else showToast(res?.error || 'Gagal menambahkan user', 'error');
+}
+
+function openResetPw(id, name) {
+  selectedUserId = id;
+  document.getElementById('resetPwTitle').childNodes[0].textContent = `Reset Password: ${name} `;
+  document.getElementById('newPw').value = '';
+  document.getElementById('resetPwModal').classList.add('open');
+}
+
+async function saveResetPw() {
+  const password = document.getElementById('newPw').value;
+  if (!password || password.length < 4) { showToast('Password minimal 4 karakter', 'error'); return; }
+  const res = await API.put(`/api/auth/users/${selectedUserId}/password`, { password });
+  if (res?.success) { showToast('Password berhasil direset', 'success'); closeModal('resetPwModal'); }
+  else showToast('Gagal mereset password', 'error');
+}
+
+async function toggleBiaya(id, currentAccess) {
+  const res = await API.put(`/api/auth/users/${id}/biaya-access`, { access: !currentAccess });
+  if (res?.success) { showToast(res.message, 'success'); loadUsers(); }
+  else showToast('Gagal mengubah akses', 'error');
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`Hapus user "${name}"?\nTindakan ini tidak bisa dibatalkan.`)) return;
+  const res = await API.delete(`/api/auth/users/${id}`);
+  if (res?.success) { showToast('User dihapus', 'success'); loadUsers(); }
+  else showToast('Gagal menghapus user', 'error');
+}
+
+init();
+</script>
+</body>
+</html>
